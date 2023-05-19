@@ -1,3 +1,5 @@
+use rand::Rng;
+
 #[derive(Debug, Clone)]
 enum BlockState {
     ReadEmpty,
@@ -40,8 +42,8 @@ enum Smile {
 
 #[derive(Debug)]
 struct BoardPoint {
-    col: i32,
-    row: i32,
+    col: usize,
+    row: usize,
 }
 
 #[derive(Debug)]
@@ -62,7 +64,7 @@ pub struct MinesweeperGame {
 
 impl MinesweeperGame {
     pub fn new(width: usize, height: usize) -> MinesweeperGame {
-        let block_array = vec![vec![Block::default(); width]; height];
+        let block_array = vec![vec![Block::default(); height]; width];
 
         MinesweeperGame {
             smile: Smile::Normal,
@@ -74,4 +76,23 @@ impl MinesweeperGame {
             num_revealed_blocks: 0,
         }
     }
+
+    pub fn lay_mines(&mut self, num_mines: usize) {
+        let mut rng = rand::thread_rng();
+        let mut mines: usize = 0;
+
+        while mines < num_mines {
+            let col = rng.gen_range(0..self.width);
+            let row = rng.gen_range(0..self.height);
+
+            if self.block_array[col][row].is_bomb {
+                continue;
+            }
+
+            self.block_array[col][row].is_bomb = true;
+
+            mines += 1;
+        }
+    }
+
 }
