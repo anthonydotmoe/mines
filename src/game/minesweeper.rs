@@ -1,32 +1,23 @@
-use rand::Rng;
+use fastrand;
 
 #[derive(Debug, Clone)]
 enum BlockState {
-    ReadEmpty,
-    ClickedQuestionMark,
-    BlackBomb,
-    BombWithX,
-    BombRedBackground,
-    QuestionMark,
-    Flag,
-    EmptyUnclicked,
-    BorderValue,
+    Hidden,
+    Flagged,
+    Questioned,
+    Revealed,
+    Exploded, // Only for bombs
 }
 
 #[derive(Debug, Clone)]
-struct Block {
-    state: BlockState,
-    is_bomb: bool,
-    is_revealed: bool,
+enum Block {
+    Empty { state: BlockState, adjacent_bombs: usize },
+    Bomb { state: BlockState },
 }
 
 impl Default for Block {
     fn default() -> Self {
-        Block {
-            state: BlockState::EmptyUnclicked,
-            is_bomb: false,
-            is_revealed: false,
-        }
+        Block::Empty { state: BlockState::Hidden, adjacent_bombs: 0 }
     }
 }
 
@@ -78,12 +69,32 @@ impl MinesweeperGame {
     }
 
     pub fn lay_mines(&mut self, num_mines: usize) {
-        let mut rng = rand::thread_rng();
-        let mut mines: usize = 0;
 
+        for _ in 0..num_mines {
+
+            let (c, r) = loop {
+                let (c, r) = (
+                    fastrand::usize(..self.width),
+                    fastrand::usize(..self.height)
+                );
+
+                match self.block_array[c][r] {
+                    Block::Empty { state: _, adjacent_bombs: _ } => {
+                        break (c, r)
+                    }
+                    _ => continue,
+                }
+            };
+
+            self.block_array[c][r] = Block::Bomb { state: BlockState::Hidden };
+
+            self.increment_adjacent_bombs(c, r);
+
+        }
+                /*
         while mines < num_mines {
-            let col = rng.gen_range(0..self.width);
-            let row = rng.gen_range(0..self.height);
+            let col = fastrand::usize(..self.width);
+            let row = fastrand::usize(..self.height);
 
             if self.block_array[col][row].is_bomb {
                 continue;
@@ -93,6 +104,68 @@ impl MinesweeperGame {
 
             mines += 1;
         }
+        */
     }
 
+    fn increment_adjacent_bombs(&mut self, col: usize, row: usize) {
+        let neighbors = [
+            (col.wrapping_sub(1), row.wrapping_sub(1)),
+            (col.wrapping_sub(1), row),
+            (col.wrapping_sub(1), row + 1),
+            (col, row.wrapping_sub(1)),
+            (col, row + 1),
+            (col + 1, row.wrapping_sub(1)),
+            (col + 1, row),
+            (col + 1, row + 1),
+        ];
+
+        for &(ncol, nrow) in &neighbors {
+            if ncol < self.width && nrow < self.height {
+                match &mut self.block_array[ncol][nrow] {
+                    Block::Empty { adjacent_bombs, .. } => *adjacent_bombs += 1,
+                    _ => {},
+                }
+            }
+        }
+    }
+
+    pub fn print_board(&self) {
+        for row in &self.block_array {
+            for block in row {
+                let symbol = match block {
+                    Block::Bomb  { .. }  => "💣",
+                    Block::Empty { adjacent_bombs, .. } => {
+                        match adjacent_bombs {
+                            0 => "　",
+                            //0 => "🟦",
+                            1 => "１",
+                            2 => "２",
+                            3 => "３",
+                            4 => "４",
+                            5 => "５",
+                            6 => "６",
+                            7 => "７",
+                            8 => "８",
+                            _ => unreachable!(),
+                        }
+                    }
+                };
+                /*
+                let symbol = match block.state {
+                    BlockState::ReadEmpty => ".",
+                    BlockState::ClickedQuestionMark => "?",
+                    BlockState::BlackBomb => "*",
+                    BlockState::BombWithX => "X",
+                    BlockState::BombRedBackground => "R",
+                    BlockState::QuestionMark => "?",
+                    BlockState::Flag => "F",
+                    BlockState::EmptyUnclicked => ".",
+                    BlockState::BorderValue => "B",
+                };
+                */
+                print!("{}", symbol);
+            }
+            println!();
+        }
+    }
 }
